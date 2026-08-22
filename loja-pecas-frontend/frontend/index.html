@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recicla Hardware — Peças de computador usadas</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topo">
+  <div class="container topo-inner">
+    <div class="logo"><span class="chip"></span> RECICLA HARDWARE</div>
+    <form class="busca-form" id="form-busca">
+      <input type="text" id="campo-busca" placeholder="Buscar placa-mãe, fonte, HD...">
+      <button type="submit">Buscar</button>
+    </form>
+    <nav class="topo-nav">
+      <a href="carrinho.html">Carrinho (<span id="contador-carrinho">0</span>)</a>
+      <span id="area-usuario"></span>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="container">
+    <span class="eyebrow">Peças testadas &middot; segunda vida para o seu hardware</span>
+    <h1>Componentes usados, testados e prontos pra rodar de novo.</h1>
+    <p>Placas-mãe, fontes, memórias, carcaças, cabos e peças de impressora — tudo verificado antes de ir pra loja.</p>
+  </div>
+</section>
+
+<div class="container">
+  <div class="categorias-trilha" id="lista-categorias">
+    <span class="categoria-pino ativa" data-id="">Todas</span>
+  </div>
+
+  <div class="grid-produtos" id="grid-produtos">
+    <p style="color:var(--texto-fraco)">Carregando peças...</p>
+  </div>
+</div>
+
+<footer>
+  Recicla Hardware — loja de peças de computador usadas. Pagamento processado via Mercado Pago.
+</footer>
+
+<script src="js/api.js"></script>
+<script>
+const params = new URLSearchParams(window.location.search);
+let categoriaAtual = params.get('categoria') || '';
+let buscaAtual = params.get('busca') || '';
+
+function renderUsuario() {
+  const usuario = pegarUsuario();
+  const area = document.getElementById('area-usuario');
+  if (usuario) {
+    area.innerHTML = `<a href="pedidos.html">${usuario.nome.split(' ')[0]}</a> · <a href="#" onclick="sair();return false;">Sair</a>` +
+      (usuario.is_admin ? ' · <a href="admin.html">Admin</a>' : '');
+  } else {
+    area.innerHTML = `<a href="login.html">Entrar</a> · <a href="cadastro.html">Cadastrar</a>`;
+  }
+}
+
+async function carregarCategorias() {
+  try {
+    const categorias = await api('/produtos/categorias/todas');
+    const lista = document.getElementById('lista-categorias');
+    categorias.forEach(c => {
+      const el = document.createElement('span');
+      el.className = 'categoria-pino' + (String(c.id) === categoriaAtual ? ' ativa' : '');
+      el.textContent = c.nome;
+      el.onclick = () => { window.location.href = `index.html?categoria=${c.id}`; };
+      lista.appendChild(el);
+    });
+  } catch (e) { console.error(e); }
+}
+
+async function carregarProdutos() {
+  const grid = document.getElementById('grid-produtos');
+  try {
+    let query = [];
+    if (categoriaAtual) query.push(`categoria=${categoriaAtual}`);
+    if (buscaAtual) query.push(`busca=${encodeURIComponent(buscaAtual)}`);
+    const produtos = await api(`/produtos${query.length ? '?' + query.join('&') : ''}`);
+
+    if (produtos.length === 0) {
+      grid.innerHTML = '<p style="color:var(--texto-fraco)">Nenhuma peça encontrada.</p>';
+      return;
+    }
+
+    grid.innerHTML = '';
+    produtos.forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'card-produto';
+      card.innerHTML = `
+        <a href="produto.html?id=${p.id}">
+          <div class="imagem">${p.imagem_url ? `<img src="${p.imagem_url}" alt="${p.titulo}">` : 'sem imagem'}</div>
+        </a>
+        <div class="info">
+          <span class="condicao">${p.condicao}</span>
+          <h3><a href="produto.html?id=${p.id}" style="color:inherit">${p.titulo}</a></h3>
+          <span class="preco">R$ ${Number(p.preco).toFixed(2)}</span>
+          ${p.estoque <= 2 ? `<span class="estoque-baixo">últimas ${p.estoque} unid.</span>` : ''}
+        </div>`;
+      grid.appendChild(card);
+    });
+  } catch (e) {
+    grid.innerHTML = `<p class="erro-msg">Não foi possível carregar as peças. Verifique se a API está no ar.</p>`;
+  }
+}
+
+document.getElementById('form-busca').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const valor = document.getElementById('campo-busca').value;
+  window.location.href = `index.html?busca=${encodeURIComponent(valor)}`;
+});
+
+renderUsuario();
+carregarCategorias();
+carregarProdutos();
+</script>
+</body>
+</html>

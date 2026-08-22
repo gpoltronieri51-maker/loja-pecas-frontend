@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carrinho — Recicla Hardware</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topo">
+  <div class="container topo-inner">
+    <div class="logo"><a href="index.html" style="color:inherit"><span class="chip"></span> RECICLA HARDWARE</a></div>
+    <nav class="topo-nav">
+      <a href="carrinho.html">Carrinho (<span id="contador-carrinho">0</span>)</a>
+      <span id="area-usuario"></span>
+    </nav>
+  </div>
+</header>
+
+<div class="container" style="padding:40px 0; max-width:720px">
+  <h1>Seu carrinho</h1>
+  <div id="lista-itens"></div>
+  <div class="resumo-total"><span>Total</span><span id="valor-total">R$ 0,00</span></div>
+
+  <div class="campo" style="margin-top:24px">
+    <label>Endereço de entrega</label>
+    <textarea id="endereco" rows="3" placeholder="Rua, número, bairro, cidade, CEP"></textarea>
+  </div>
+
+  <p id="msg-erro" class="erro-msg"></p>
+  <button class="btn bloco" id="btn-finalizar" style="margin-top:10px">Finalizar compra com Mercado Pago</button>
+</div>
+
+<footer>Recicla Hardware — loja de peças de computador usadas.</footer>
+
+<script src="js/api.js"></script>
+<script>
+function renderUsuario() {
+  const usuario = pegarUsuario();
+  const area = document.getElementById('area-usuario');
+  area.innerHTML = usuario
+    ? `<a href="pedidos.html">${usuario.nome.split(' ')[0]}</a> · <a href="#" onclick="sair();return false;">Sair</a>`
+    : `<a href="login.html">Entrar</a> · <a href="cadastro.html">Cadastrar</a>`;
+}
+
+function renderCarrinho() {
+  const carrinho = pegarCarrinho();
+  const lista = document.getElementById('lista-itens');
+  if (carrinho.length === 0) {
+    lista.innerHTML = '<p style="color:var(--texto-fraco)">Seu carrinho está vazio. <a href="index.html">Ver peças</a></p>';
+    document.getElementById('btn-finalizar').style.display = 'none';
+    document.getElementById('valor-total').textContent = 'R$ 0,00';
+    return;
+  }
+  lista.innerHTML = '';
+  let total = 0;
+  carrinho.forEach(item => {
+    total += item.preco * item.quantidade;
+    const linha = document.createElement('div');
+    linha.className = 'linha-carrinho';
+    linha.innerHTML = `
+      <div class="imagem-mini">${item.imagem_url ? `<img src="${item.imagem_url}">` : ''}</div>
+      <div style="flex:1">
+        <strong>${item.titulo}</strong><br>
+        <span style="color:var(--texto-fraco)">R$ ${item.preco.toFixed(2)} cada</span>
+      </div>
+      <div class="qtd-controle">
+        <button data-acao="menos">−</button>
+        <span>${item.quantidade}</span>
+        <button data-acao="mais">+</button>
+      </div>
+      <strong>R$ ${(item.preco * item.quantidade).toFixed(2)}</strong>
+      <button class="btn secundario" data-acao="remover">remover</button>`;
+    linha.querySelector('[data-acao="mais"]').onclick = () => { item.quantidade++; salvarCarrinho(carrinho); renderCarrinho(); };
+    linha.querySelector('[data-acao="menos"]').onclick = () => {
+      item.quantidade--;
+      if (item.quantidade <= 0) removerDoCarrinho(item.produto_id);
+      else salvarCarrinho(carrinho);
+      renderCarrinho();
+    };
+    linha.querySelector('[data-acao="remover"]').onclick = () => { removerDoCarrinho(item.produto_id); renderCarrinho(); };
+    lista.appendChild(linha);
+  });
+  document.getElementById('valor-total').textContent = `R$ ${total.toFixed(2)}`;
+}
+
+document.getElementById('btn-finalizar').addEventListener('click', async () => {
+  const msgErro = document.getElementById('msg-erro');
+  msgErro.textContent = '';
+
+  if (!pegarUsuario()) {
+    window.location.href = 'login.html?voltar=carrinho.html';
+    return;
+  }
+
+  const carrinho = pegarCarrinho();
+  const endereco = document.getElementById('endereco').value;
+  if (!endereco) { msgErro.textContent = 'Informe o endereço de entrega.'; return; }
+
+  try {
+    const resposta = await api('/pagamentos/criar-preferencia', {
+      method: 'POST',
+      body: JSON.stringify({
+        itens: carrinho.map(i => ({ produto_id: i.produto_id, quantidade: i.quantidade })),
+        endereco_entrega: endereco
+      })
+    });
+    localStorage.removeItem('carrinho');
+    window.location.href = resposta.init_point; // leva o cliente ao checkout do Mercado Pago
+  } catch (e) {
+    msgErro.textContent = e.message;
+  }
+});
+
+renderUsuario();
+renderCarrinho();
+</script>
+</body>
+</html>

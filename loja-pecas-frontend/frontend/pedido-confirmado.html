@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pedido — Recicla Hardware</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topo">
+  <div class="container topo-inner">
+    <div class="logo"><a href="index.html" style="color:inherit"><span class="chip"></span> RECICLA HARDWARE</a></div>
+  </div>
+</header>
+
+<div class="form-card" style="text-align:center">
+  <h2 id="titulo">Verificando seu pedido...</h2>
+  <p id="detalhe" style="color:var(--texto-fraco)"></p>
+  <a class="btn" href="index.html" style="margin-top:16px;display:inline-block">Voltar à loja</a>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+async function verificar() {
+  const params = new URLSearchParams(window.location.search);
+  const pedidoId = params.get('pedido');
+  const titulo = document.getElementById('titulo');
+  const detalhe = document.getElementById('detalhe');
+  if (!pedidoId) { titulo.textContent = 'Pedido não identificado'; return; }
+
+  try {
+    const pedido = await api(`/pagamentos/status/${pedidoId}`);
+    if (pedido.status === 'pago') {
+      titulo.textContent = 'Pagamento aprovado! 🎉';
+      detalhe.textContent = `Pedido #${pedido.id} confirmado. Você vai receber os detalhes de envio por email.`;
+    } else if (pedido.status === 'pendente') {
+      titulo.textContent = 'Pagamento em processamento';
+      detalhe.textContent = `Assim que o Mercado Pago confirmar, seu pedido #${pedido.id} será atualizado automaticamente.`;
+    } else {
+      titulo.textContent = 'Pagamento não concluído';
+      detalhe.textContent = `O pedido #${pedido.id} não foi aprovado. Você pode tentar novamente.`;
+    }
+  } catch (e) {
+    titulo.textContent = 'Não foi possível verificar o pedido';
+  }
+}
+verificar();
+</script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meus pedidos — Recicla Hardware</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topo">
+  <div class="container topo-inner">
+    <div class="logo"><a href="index.html" style="color:inherit"><span class="chip"></span> RECICLA HARDWARE</a></div>
+    <nav class="topo-nav"><a href="#" onclick="sair();return false;">Sair</a></nav>
+  </div>
+</header>
+
+<div class="container" style="padding:40px 0; max-width:720px">
+  <h1>Meus pedidos</h1>
+  <div id="lista-pedidos"></div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+async function carregar() {
+  if (!pegarUsuario()) { window.location.href = 'login.html'; return; }
+  const lista = document.getElementById('lista-pedidos');
+  try {
+    const pedidos = await api('/pedidos/meus');
+    if (pedidos.length === 0) { lista.innerHTML = '<p style="color:var(--texto-fraco)">Você ainda não fez nenhum pedido.</p>'; return; }
+    lista.innerHTML = pedidos.map(p => `
+      <div class="linha-carrinho">
+        <div style="flex:1">
+          <strong>Pedido #${p.id}</strong><br>
+          <span style="color:var(--texto-fraco)">${new Date(p.criado_em).toLocaleDateString('pt-BR')} · status: ${p.status}</span>
+        </div>
+        <strong>R$ ${Number(p.total).toFixed(2)}</strong>
+      </div>`).join('');
+  } catch (e) {
+    lista.innerHTML = '<p class="erro-msg">Erro ao carregar pedidos.</p>';
+  }
+}
+carregar();
+</script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Entrar — Recicla Hardware</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topo">
+  <div class="container topo-inner">
+    <div class="logo"><a href="index.html" style="color:inherit"><span class="chip"></span> RECICLA HARDWARE</a></div>
+  </div>
+</header>
+
+<div class="form-card">
+  <h2>Entrar na conta</h2>
+  <form id="form-login">
+    <div class="campo"><label>Email</label><input type="email" id="email" required></div>
+    <div class="campo"><label>Senha</label><input type="password" id="senha" required></div>
+    <button class="btn bloco" type="submit">Entrar</button>
+    <p id="msg-erro" class="erro-msg"></p>
+  </form>
+  <p style="margin-top:16px;color:var(--texto-fraco)">Não tem conta? <a href="cadastro.html">Cadastre-se</a></p>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+document.getElementById('form-login').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msgErro = document.getElementById('msg-erro');
+  msgErro.textContent = '';
+  try {
+    const resposta = await api('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: document.getElementById('email').value,
+        senha: document.getElementById('senha').value
+      })
+    });
+    salvarSessao(resposta.usuario, resposta.token);
+    const voltar = new URLSearchParams(window.location.search).get('voltar');
+    window.location.href = voltar || 'index.html';
+  } catch (e) {
+    msgErro.textContent = e.message;
+  }
+});
+</script>
+</body>
+</html>

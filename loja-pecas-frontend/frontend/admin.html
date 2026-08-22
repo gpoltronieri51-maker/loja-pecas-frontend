@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Recicla Hardware</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topo">
+  <div class="container topo-inner">
+    <div class="logo"><a href="index.html" style="color:inherit"><span class="chip"></span> RECICLA HARDWARE — ADMIN</a></div>
+    <nav class="topo-nav"><a href="index.html">Ver loja</a> · <a href="#" onclick="sair();return false;">Sair</a></nav>
+  </div>
+</header>
+
+<div class="container" style="padding:40px 0; max-width:900px">
+  <h1>Cadastrar nova peça</h1>
+  <form id="form-produto" class="form-card" style="max-width:100%;margin:0 0 40px">
+    <div class="campo"><label>Título</label><input type="text" id="titulo" required></div>
+    <div class="campo"><label>Descrição</label><textarea id="descricao" rows="3"></textarea></div>
+    <div class="campo"><label>Categoria</label><select id="categoria_id"></select></div>
+    <div class="campo"><label>Condição</label>
+      <select id="condicao">
+        <option value="usado">Usado - funcionando</option>
+        <option value="seminovo">Seminovo</option>
+        <option value="para retirada de peças">Para retirada de peças</option>
+      </select>
+    </div>
+    <div class="campo"><label>Preço (R$)</label><input type="number" step="0.01" id="preco" required></div>
+    <div class="campo"><label>Estoque</label><input type="number" id="estoque" value="1" required></div>
+    <div class="campo"><label>URL da imagem</label><input type="text" id="imagem_url" placeholder="https://..."></div>
+    <button class="btn" type="submit">Cadastrar peça</button>
+    <p id="msg" class="ok-msg"></p>
+  </form>
+
+  <h2>Peças cadastradas</h2>
+  <div id="lista-admin"></div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+async function verificarAcesso() {
+  const usuario = pegarUsuario();
+  if (!usuario || !usuario.is_admin) {
+    document.body.innerHTML = '<div class="form-card"><p class="erro-msg">Acesso restrito ao administrador da loja.</p><a class="btn" href="index.html">Voltar</a></div>';
+    throw new Error('sem acesso');
+  }
+}
+
+async function carregarCategorias() {
+  const select = document.getElementById('categoria_id');
+  const categorias = await api('/produtos/categorias/todas');
+  select.innerHTML = categorias.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+}
+
+async function carregarLista() {
+  const lista = document.getElementById('lista-admin');
+  const produtos = await api('/produtos');
+  lista.innerHTML = produtos.map(p => `
+    <div class="linha-carrinho">
+      <div style="flex:1"><strong>${p.titulo}</strong> · R$ ${Number(p.preco).toFixed(2)} · estoque: ${p.estoque}</div>
+      <button class="btn secundario" data-id="${p.id}">remover</button>
+    </div>`).join('');
+  lista.querySelectorAll('button[data-id]').forEach(btn => {
+    btn.onclick = async () => {
+      await api(`/produtos/${btn.dataset.id}`, { method: 'DELETE' });
+      carregarLista();
+    };
+  });
+}
+
+document.getElementById('form-produto').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById('msg');
+  try {
+    await api('/produtos', {
+      method: 'POST',
+      body: JSON.stringify({
+        titulo: document.getElementById('titulo').value,
+        descricao: document.getElementById('descricao').value,
+        categoria_id: document.getElementById('categoria_id').value,
+        condicao: document.getElementById('condicao').value,
+        preco: document.getElementById('preco').value,
+        estoque: document.getElementById('estoque').value,
+        imagem_url: document.getElementById('imagem_url').value
+      })
+    });
+    msg.textContent = 'Peça cadastrada com sucesso!';
+    e.target.reset();
+    carregarLista();
+  } catch (err) {
+    msg.className = 'erro-msg';
+    msg.textContent = err.message;
+  }
+});
+
+verificarAcesso().then(() => { carregarCategorias(); carregarLista(); });
+</script>
+</body>
+</html>
