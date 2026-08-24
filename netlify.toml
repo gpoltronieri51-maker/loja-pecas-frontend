@@ -1,0 +1,3 @@
+[build]
+  base = "loja-pecas-frontend/front-end"
+  publish = "loja-pecas-frontend/front-end"
