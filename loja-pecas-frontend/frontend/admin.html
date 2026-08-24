@@ -16,8 +16,9 @@
 </header>
 
 <div class="container" style="padding:40px 0; max-width:900px">
-  <h1>Cadastrar nova peça</h1>
+  <h1 id="titulo-form">Cadastrar nova peça</h1>
   <form id="form-produto" class="form-card" style="max-width:100%;margin:0 0 40px">
+    <input type="hidden" id="produto_id">
     <div class="campo"><label>Título</label><input type="text" id="titulo" required></div>
     <div class="campo"><label>Descrição</label><textarea id="descricao" rows="3"></textarea></div>
     <div class="campo"><label>Categoria</label><select id="categoria_id"></select></div>
@@ -31,7 +32,8 @@
     <div class="campo"><label>Preço (R$)</label><input type="number" step="0.01" id="preco" required></div>
     <div class="campo"><label>Estoque</label><input type="number" id="estoque" value="1" required></div>
     <div class="campo"><label>URL da imagem</label><input type="text" id="imagem_url" placeholder="https://..."></div>
-    <button class="btn" type="submit">Cadastrar peça</button>
+    <button class="btn" type="submit" id="btn-submit">Cadastrar peça</button>
+    <button class="btn secundario" type="button" id="btn-cancelar" style="display:none;margin-left:8px">Cancelar edição</button>
     <p id="msg" class="ok-msg"></p>
   </form>
 
@@ -55,40 +57,89 @@ async function carregarCategorias() {
   select.innerHTML = categorias.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
 }
 
+let produtosCache = [];
+
 async function carregarLista() {
   const lista = document.getElementById('lista-admin');
-  const produtos = await api('/produtos');
-  lista.innerHTML = produtos.map(p => `
+  produtosCache = await api('/produtos');
+  lista.innerHTML = produtosCache.map(p => `
     <div class="linha-carrinho">
       <div style="flex:1"><strong>${p.titulo}</strong> · R$ ${Number(p.preco).toFixed(2)} · estoque: ${p.estoque}</div>
-      <button class="btn secundario" data-id="${p.id}">remover</button>
+      <button class="btn secundario" data-editar="${p.id}">editar</button>
+      <button class="btn secundario" data-remover="${p.id}">remover</button>
     </div>`).join('');
-  lista.querySelectorAll('button[data-id]').forEach(btn => {
+
+  lista.querySelectorAll('button[data-remover]').forEach(btn => {
     btn.onclick = async () => {
-      await api(`/produtos/${btn.dataset.id}`, { method: 'DELETE' });
+      if (!confirm('Remover esta peça da loja?')) return;
+      await api(`/produtos/${btn.dataset.remover}`, { method: 'DELETE' });
       carregarLista();
     };
   });
+
+  lista.querySelectorAll('button[data-editar]').forEach(btn => {
+    btn.onclick = () => preencherFormularioParaEdicao(btn.dataset.editar);
+  });
 }
+
+function preencherFormularioParaEdicao(id) {
+  const p = produtosCache.find(item => String(item.id) === String(id));
+  if (!p) return;
+
+  document.getElementById('produto_id').value = p.id;
+  document.getElementById('titulo').value = p.titulo;
+  document.getElementById('descricao').value = p.descricao || '';
+  document.getElementById('categoria_id').value = p.categoria_id || '';
+  document.getElementById('condicao').value = p.condicao || 'usado';
+  document.getElementById('preco').value = p.preco;
+  document.getElementById('estoque').value = p.estoque;
+  document.getElementById('imagem_url').value = p.imagem_url || '';
+
+  document.getElementById('titulo-form').textContent = `Editando: ${p.titulo}`;
+  document.getElementById('btn-submit').textContent = 'Salvar alterações';
+  document.getElementById('btn-cancelar').style.display = 'inline-block';
+  document.getElementById('msg').textContent = '';
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function cancelarEdicao() {
+  document.getElementById('form-produto').reset();
+  document.getElementById('produto_id').value = '';
+  document.getElementById('titulo-form').textContent = 'Cadastrar nova peça';
+  document.getElementById('btn-submit').textContent = 'Cadastrar peça';
+  document.getElementById('btn-cancelar').style.display = 'none';
+}
+
+document.getElementById('btn-cancelar').addEventListener('click', cancelarEdicao);
 
 document.getElementById('form-produto').addEventListener('submit', async (e) => {
   e.preventDefault();
   const msg = document.getElementById('msg');
+  const id = document.getElementById('produto_id').value;
+  const dados = {
+    titulo: document.getElementById('titulo').value,
+    descricao: document.getElementById('descricao').value,
+    categoria_id: document.getElementById('categoria_id').value,
+    condicao: document.getElementById('condicao').value,
+    preco: document.getElementById('preco').value,
+    estoque: document.getElementById('estoque').value,
+    imagem_url: document.getElementById('imagem_url').value
+  };
+
   try {
-    await api('/produtos', {
-      method: 'POST',
-      body: JSON.stringify({
-        titulo: document.getElementById('titulo').value,
-        descricao: document.getElementById('descricao').value,
-        categoria_id: document.getElementById('categoria_id').value,
-        condicao: document.getElementById('condicao').value,
-        preco: document.getElementById('preco').value,
-        estoque: document.getElementById('estoque').value,
-        imagem_url: document.getElementById('imagem_url').value
-      })
-    });
-    msg.textContent = 'Peça cadastrada com sucesso!';
-    e.target.reset();
+    if (id) {
+      // edição de peça existente — mantém ativo=true
+      await api(`/produtos/${id}`, { method: 'PUT', body: JSON.stringify({ ...dados, ativo: true }) });
+      msg.className = 'ok-msg';
+      msg.textContent = 'Peça atualizada com sucesso!';
+      cancelarEdicao();
+    } else {
+      await api('/produtos', { method: 'POST', body: JSON.stringify(dados) });
+      msg.className = 'ok-msg';
+      msg.textContent = 'Peça cadastrada com sucesso!';
+      e.target.reset();
+    }
     carregarLista();
   } catch (err) {
     msg.className = 'erro-msg';
