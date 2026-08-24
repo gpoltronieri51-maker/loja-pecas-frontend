@@ -1,5 +1,5 @@
 // Troque pela URL do seu backend publicado (ex: Render) antes de colocar no ar
-const API_URL = 'https://SUA-API.onrender.com/api';
+const API_URL = 'https://loja-pecas-backend.onrender.com';
 
 function pegarToken() { return localStorage.getItem('token'); }
 function pegarUsuario() {
